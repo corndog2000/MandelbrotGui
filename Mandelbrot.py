@@ -1,7 +1,7 @@
-import sys, random
+import sys, random, math
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPainter
+from PyQt5.QtGui import QPainter, QColor
 
 class Mandelbrot(QWidget):
 
@@ -11,7 +11,7 @@ class Mandelbrot(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(300, 300, 300, 190)
+        self.setGeometry(300, 300, 700, 443.33)    #300, 190
         self.setWindowTitle('Mandelbrot')
         self.show()
 
@@ -21,11 +21,14 @@ class Mandelbrot(QWidget):
             yield i
             i += step
 
+    def linearInter(self, value, low, high, newLow, newHigh):
+        return ((value - low) / (high - low)) * (newHigh - newLow)
+
     def paintEvent(self, e):
         qp = QPainter()
         qp.begin(self)
         #self.drawPoints(qp)
-        self.drawMandelbrot(qp)
+        self.drawMandelbrot(qp, 3, 3)
         qp.end()
 
     #Not used
@@ -37,13 +40,13 @@ class Mandelbrot(QWidget):
     #            qp.setPen(Qt.blue)
     #            qp.drawPoint(x, y)
 
-    def drawMandelbrot(self, qp):
+    def drawMandelbrot(self, qp, xMinMax, yMinMax):
         #Variables
         size = self.size()
         maxIteration = 25
 
-        for w in self.frange(-3.0, 3.0, 0.1):
-            for h in self.frange(-3.0, 3.0, 0.1):
+        for w in self.frange(-xMinMax, xMinMax, 6 / size.width()):
+            for h in self.frange(-yMinMax, yMinMax, 6 / size.height()):
 
                 x = 0
                 y = 0
@@ -56,11 +59,21 @@ class Mandelbrot(QWidget):
                     iteration += 1
                     
                 if iteration != maxIteration:
-                    qp.setPen(Qt.cyan)
+                    if iteration <= 8:
+                        qp.setPen(QColor(self.linearInter(iteration, 0, 8, 0, 255), 255, 255))  #Red is based on iteration
+                        #qp.setPen(Qt.red)
+                    elif iteration > 8 and iteration <= 16:
+                        qp.setPen(QColor(255, self.linearInter(iteration, 9, 16, 0, 255), 255))  #Green is based on iteration
+                        #qp.setPen(Qt.green)
+                    else:
+                        qp.setPen(QColor(255, 255, self.linearInter(iteration, 17, 25, 0, 255)))  #Blue is based on iteration
+                        #qp.setPen(Qt.blue)
                 else:
                     qp.setPen(Qt.black)
 
-                qp.drawPoint(w, h)
+                newW = self.linearInter(w, -3.0, 3.0, 0, size.width() - 1)
+                newH = self.linearInter(h, -3.0, 3.0, 0, size.height() - 1)
+                qp.drawPoint(newW, newH)
 
 if __name__ == '__main__':
     app = QApplication([])
