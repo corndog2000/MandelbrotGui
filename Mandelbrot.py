@@ -24,6 +24,13 @@ class Mandelbrot(QWidget):
     def linearInter(self, value, low, high, newLow, newHigh):
         return ((value - low) / (high - low)) * (newHigh - newLow)
 
+    def mousePressEvent(self, event):
+        x = event.x()
+        y = event.y()
+        
+        print(x)
+        print(y)
+
     def paintEvent(self, e):
         qp = QPainter()
         qp.begin(self)
@@ -75,7 +82,10 @@ class Mandelbrot(QWidget):
                 newH = self.linearInter(h, -3.0, 3.0, 0, size.height() - 1)
                 qp.drawPoint(newW, newH)
 
-if __name__ == '__main__':
+def main():
     app = QApplication([])
     ex = Mandelbrot()
     app.exec_()
+
+if __name__ == '__main__':
+    main()
