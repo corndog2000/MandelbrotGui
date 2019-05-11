@@ -9,7 +9,7 @@ yMin = -3
 yMax = 3
 widthScale = 3
 heightScale = 3
-zoomLevel = 2
+zoomLevel = 4
 zoomedIn = False
 
 class Mandelbrot(QWidget):
@@ -20,7 +20,7 @@ class Mandelbrot(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(300, 300, 700, 443.33)    #300, 190
+        self.setGeometry(300, 300, 700, 700)    #300, 190
         self.setWindowTitle('Mandelbrot')
         self.show()
 
@@ -28,8 +28,8 @@ class Mandelbrot(QWidget):
         global heightScale
 
         size = self.size()
-        widthScale = 6 / size.width()
-        heightScale = 6 / size.height()
+        widthScale = (xMax - xMin) / size.width()
+        heightScale = (yMax - yMin) / size.height()
 
     def frange(self, start, stop, step):
         i = start
@@ -38,7 +38,7 @@ class Mandelbrot(QWidget):
             i += step
 
     def linearMap(self, value, low, high, newLow, newHigh):
-        return ((value - low) / (high - low)) * (newHigh - newLow)
+        return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
 
     def mousePressEvent(self, event):
         global xMin
@@ -57,9 +57,19 @@ class Mandelbrot(QWidget):
 
         xMouse = event.x()
         yMouse = event.y()
-        
-        xMouse = self.linearMap(xMouse, -(windowWidth / 2), (windowWidth / 2), xMin, xMax)
-        yMouse = self.linearMap(yMouse, -(windowHeight / 2), (windowHeight / 2), yMin, yMax)
+
+        print("xMouse: ", xMouse)
+        print("yMouse: ", yMouse)
+        # print("Before Map - xMin: ", xMin)
+        # print("Before Map - yMin: ", yMin)
+        # print("Before Map - xMax: ", xMax)
+        # print("Before Map - yMax: ", yMax)
+
+        xMouse = self.linearMap(xMouse, 0, windowWidth, xMin, xMax)
+        yMouse = self.linearMap(yMouse, 0, windowHeight, yMax, yMin)
+
+        print("xMouse: ", xMouse)
+        print("yMouse: ", yMouse)
 
         #Make temporary variables to store the new x/y min/max so they aren't changed while the algorithms are still working
         xMinTemp = xMouse - ((xMax - xMin) / (zoomLevel * zoomLevel))
@@ -73,8 +83,11 @@ class Mandelbrot(QWidget):
         yMax = yMaxTemp
 
         #Update scale for the new zoomed in view
-        widthScale = widthScale / ((zoomLevel * zoomLevel) / 1.5)
-        heightScale = heightScale / ((zoomLevel * zoomLevel) / 1.5)
+        #widthScale = widthScale / ((zoomLevel * zoomLevel) / 1.5)
+        #heightScale = heightScale / ((zoomLevel * zoomLevel) / 1.5)
+
+        widthScale = (xMax - xMin) / size.width()
+        heightScale = (yMax - yMin) / size.height()
 
         self.repaint()
         print("Done zooming in.")
@@ -99,11 +112,15 @@ class Mandelbrot(QWidget):
     def drawMandelbrot(self, qp, xMin, xMax, yMin, yMax, widthScale, heightScale):
         #Variables
         size = self.size()
-        maxIteration = 25
+        maxIteration = 100
         
-        if zoomedIn is False:
-            widthScale = 6 / size.width()
-            heightScale = 6 / size.height()
+        #if zoomedIn is False:
+        widthScale = (xMax - xMin) / size.width()
+        heightScale = (yMax - yMin) / size.height()
+
+
+        #    widthScale = 6 / size.width()
+        #    heightScale = 6 / size.height()
 
         for w in self.frange(xMin, xMax, widthScale):
             for h in self.frange(yMin, yMax, heightScale):
@@ -117,22 +134,28 @@ class Mandelbrot(QWidget):
                     y = ((2*x) * y) + h
                     x = xtemp
                     iteration += 1
-                    
+                '''    
                 if iteration != maxIteration:
-                    if iteration <= 8:
-                        qp.setPen(QColor(self.linearMap(iteration, 0, 8, 0, 255), 255, 255))  #Red is based on iteration
+                    if iteration <= 33:
+                        qp.setPen(QColor(self.linearMap(iteration, 0, 33, 0, 255), 255, 255))  #Red is based on iteration
                         #qp.setPen(Qt.red)
-                    elif iteration > 8 and iteration <= 16:
-                        qp.setPen(QColor(255, self.linearMap(iteration, 9, 16, 0, 255), 255))  #Green is based on iteration
+                    elif iteration > 33 and iteration <= 66:
+                        qp.setPen(QColor(255, self.linearMap(iteration, 33, 66, 0, 255), 255))  #Green is based on iteration
                         #qp.setPen(Qt.green)
                     else:
-                        qp.setPen(QColor(255, 255, self.linearMap(iteration, 17, 25, 0, 255)))  #Blue is based on iteration
+                        qp.setPen(QColor(255, 255, self.linearMap(iteration, 67, maxIteration, 0, 255)))  #Blue is based on iteration
                         #qp.setPen(Qt.blue)
+                else:
+                    qp.setPen(Qt.black)
+                '''
+
+                if iteration != maxIteration:
+                    qp.setPen(QColor.fromHsv(self.linearMap(iteration, 0, 100, 0, 255), 255, 255))
                 else:
                     qp.setPen(Qt.black)
 
                 newW = self.linearMap(w, xMin, xMax, 0, size.width() - 1)
-                newH = self.linearMap(h, yMin, yMax, 0, size.height() - 1)
+                newH = self.linearMap(h, yMin, yMax, size.height() - 1, 0)
                 qp.drawPoint(newW, newH)
 
 def main():
