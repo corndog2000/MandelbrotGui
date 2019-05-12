@@ -2,21 +2,20 @@ import sys, random, math
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QColor
+from multiprocessing import Process
 
 xMin = -3
 xMax = 3
 yMin = -3
 yMax = 3
-widthScale = 3
-heightScale = 3
+#widthScale = 3
+#heightScale = 3
 zoomLevel = 4
-zoomedIn = False
 
 class Mandelbrot(QWidget):
 
     def __init__(self):
         super().__init__()
-
         self.initUI()
 
     def initUI(self):
@@ -24,13 +23,7 @@ class Mandelbrot(QWidget):
         self.setWindowTitle('Mandelbrot')
         self.show()
 
-        global widthScale
-        global heightScale
-
-        size = self.size()
-        widthScale = (xMax - xMin) / size.width()
-        heightScale = (yMax - yMin) / size.height()
-
+    #Custom version of the range function that works with float numbers
     def frange(self, start, stop, step):
         i = start
         while i < stop:
@@ -40,16 +33,36 @@ class Mandelbrot(QWidget):
     def linearMap(self, value, low, high, newLow, newHigh):
         return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
 
+    #Called whenever the window is resized or brought into focus
+    def paintEvent(self, event):
+        qp = QPainter()
+        qp.begin(self)
+        #Run the drawMandelbrot program
+        #self.runMultiprocessing(qp)
+        self.drawMandelbrot(qp, xMin, xMax, yMin, yMax)
+        qp.end()
+    
+    def runMultiprocessing(self, qp):
+        numberOfThreads = 4
+
+        totalLength = abs(xMin) + abs(xMax)
+        pieceLength = totalLength / numberOfThreads
+
+        for i in range(numberOfThreads):
+            xMinNew = xMin + (pieceLength * i)
+            xMaxNew = xMin + (pieceLength * (i + 1))
+
+            print("Process ", i, " started.")
+            p = Process(target=self.drawMandelbrot, args=(qp, xMinNew, xMaxNew, yMin, yMax))
+            p.start()
+        
+        p.join()
+    
     def mousePressEvent(self, event):
         global xMin
         global xMax
         global yMin
         global yMax
-        global widthScale
-        global heightScale
-        global zoomedIn
-
-        zoomedIn = True
         
         size = self.size()
         windowWidth = size.width()
@@ -58,18 +71,18 @@ class Mandelbrot(QWidget):
         xMouse = event.x()
         yMouse = event.y()
 
-        print("xMouse: ", xMouse)
-        print("yMouse: ", yMouse)
-        # print("Before Map - xMin: ", xMin)
-        # print("Before Map - yMin: ", yMin)
-        # print("Before Map - xMax: ", xMax)
-        # print("Before Map - yMax: ", yMax)
+        #print("xMouse: ", xMouse)
+        #print("yMouse: ", yMouse)
+        #print("Before Map - xMin: ", xMin)
+        #print("Before Map - yMin: ", yMin)
+        #print("Before Map - xMax: ", xMax)
+        #print("Before Map - yMax: ", yMax)
 
         xMouse = self.linearMap(xMouse, 0, windowWidth, xMin, xMax)
         yMouse = self.linearMap(yMouse, 0, windowHeight, yMax, yMin)
 
-        print("xMouse: ", xMouse)
-        print("yMouse: ", yMouse)
+        #print("xMouse: ", xMouse)
+        #print("yMouse: ", yMouse)
 
         #Make temporary variables to store the new x/y min/max so they aren't changed while the algorithms are still working
         xMinTemp = xMouse - ((xMax - xMin) / (zoomLevel * zoomLevel))
@@ -90,34 +103,24 @@ class Mandelbrot(QWidget):
         heightScale = (yMax - yMin) / size.height()
 
         self.repaint()
-        print("Done zooming in.")
-        print("New xMin: ", xMin)
-        print("New xMax: ", xMax)
-        print("New yMin: ", yMin)
-        print("New yMax: ", yMax)
-        print("New widthScale: ", widthScale)
-        print("New heightScale: ", heightScale)
+        #print("Done zooming in.")
+        #print("New xMin: ", xMin)
+        #print("New xMax: ", xMax)
+        #print("New yMin: ", yMin)
+        #print("New yMax: ", yMax)
+        #print("New widthScale: ", widthScale)
+        #print("New heightScale: ", heightScale)
 
         #print(x)
         #print(y)
 
-    def paintEvent(self, event):
-        qp = QPainter()
-        qp.begin(self)
-        #self.drawPoints(qp)
-        #Run the draw program
-        self.drawMandelbrot(qp, xMin, xMax, yMin, yMax, widthScale, heightScale)
-        qp.end()
-
-    def drawMandelbrot(self, qp, xMin, xMax, yMin, yMax, widthScale, heightScale):
+    def drawMandelbrot(self, qp, xMin, xMax, yMin, yMax):
         #Variables
         size = self.size()
-        maxIteration = 100
+        maxIteration = 255
         
-        #if zoomedIn is False:
         widthScale = (xMax - xMin) / size.width()
         heightScale = (yMax - yMin) / size.height()
-
 
         #    widthScale = 6 / size.width()
         #    heightScale = 6 / size.height()
@@ -150,7 +153,7 @@ class Mandelbrot(QWidget):
                 '''
 
                 if iteration != maxIteration:
-                    qp.setPen(QColor.fromHsv(self.linearMap(iteration, 0, 100, 0, 255), 255, 255))
+                    qp.setPen(QColor.fromHsv(iteration, 255, 255))
                 else:
                     qp.setPen(Qt.black)
 
