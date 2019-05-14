@@ -1,21 +1,19 @@
 import sys, random, math
 import array as arrPoints
+import multiprocessing
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QColor
-from multiprocessing import Process
+
 
 xMin = -3
 xMax = 3
 yMin = -3
 yMax = 3
-#widthScale = 3
-#heightScale = 3
 zoomLevel = 4
+arrPoints = []  #At the beginning set the array to be emptyc
 
-
-
-class Mandelbrot(QWidget):
+class GuiApp(QWidget):
 
     def __init__(self):
         super().__init__()
@@ -24,43 +22,16 @@ class Mandelbrot(QWidget):
     def initUI(self):
         self.setGeometry(300, 300, 700, 700)    #300, 190
         self.setWindowTitle('Mandelbrot')
-        #self.show()
-        self.showFullScreen()
-
-    #Custom version of the range function that works with float numbers
-    def frange(self, start, stop, step):
-        i = start
-        while i < stop:
-            yield i
-            i += step
-
-    def linearMap(self, value, low, high, newLow, newHigh):
-        return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
+        self.show()
+        #self.showFullScreen()
 
     #Called whenever the window is resized or brought into focus
     def paintEvent(self, event):
         qp = QPainter()
         qp.begin(self)
         #Run the drawMandelbrot program
-        #self.runMultiprocessing(qp)
-        self.drawMandelbrot(qp, xMin, xMax, yMin, yMax)
+        self.drawMandelbrot(qp, xMin, xMax, yMin, yMax, arrPoints)
         qp.end()
-    
-    def runMultiprocessing(self, qp):
-        numberOfThreads = 4
-
-        totalLength = abs(xMin) + abs(xMax)
-        pieceLength = totalLength / numberOfThreads
-
-        for i in range(numberOfThreads):
-            xMinNew = xMin + (pieceLength * i)
-            xMaxNew = xMin + (pieceLength * (i + 1))
-
-            print("Process ", i, " started.")
-            p = Process(target=self.drawMandelbrot, args=(qp, xMinNew, xMaxNew, yMin, yMax))
-            p.start()
-        
-        p.join()
     
     def mousePressEvent(self, event):
         global xMin
@@ -106,6 +77,7 @@ class Mandelbrot(QWidget):
         widthScale = (xMax - xMin) / size.width()
         heightScale = (yMax - yMin) / size.height()
 
+
         self.repaint()
         #print("Done zooming in.")
         #print("New xMin: ", xMin)
@@ -118,54 +90,99 @@ class Mandelbrot(QWidget):
         #print(x)
         #print(y)
 
-    def drawMandelbrot(self, qp, xMin, xMax, yMin, yMax):
-        #Variables
+    def drawMandelbrot(self, qp, arrPoints):
         size = self.size()
-        maxIteration = 255
         
-        widthScale = (xMax - xMin) / size.width()
-        heightScale = (yMax - yMin) / size.height()
+        if 0 > len(arrPoints):
+            
+            for Point in arrPoints:
+                newW = self.linearMap(Point.x, xMin, xMax, 0, size.width() - 1)
+                newH = self.linearMap(Point.y, yMin, yMax, size.height() - 1, 0)
 
-        #    widthScale = 6 / size.width()
-        #    heightScale = 6 / size.height()
+                #Grab the color from the current Point object
+                color = Point.color
 
-        for w in self.frange(xMin, xMax, widthScale):
-            for h in self.frange(yMin, yMax, heightScale):
-
-                x = 0
-                y = 0
-                iteration = 0
-
-                while (x*x + y*y <= 4) and (iteration < maxIteration):
-                    xtemp = (x*x - y*y) + w
-                    y = ((2*x) * y) + h
-                    x = xtemp
-                    iteration += 1
-                '''    
-                if iteration != maxIteration:
-                    if iteration <= 33:
-                        qp.setPen(QColor(self.linearMap(iteration, 0, 33, 0, 255), 255, 255))  #Red is based on iteration
-                        #qp.setPen(Qt.red)
-                    elif iteration > 33 and iteration <= 66:
-                        qp.setPen(QColor(255, self.linearMap(iteration, 33, 66, 0, 255), 255))  #Green is based on iteration
-                        #qp.setPen(Qt.green)
-                    else:
-                        qp.setPen(QColor(255, 255, self.linearMap(iteration, 67, maxIteration, 0, 255)))  #Blue is based on iteration
-                        #qp.setPen(Qt.blue)
-                else:
-                    qp.setPen(Qt.black)
-                '''
-
-                if iteration != maxIteration:
-                    qp.setPen(QColor.fromHsv(iteration, 255, 255))
+                #The calculateMandelbrot will set color to -1 if the iterations are infinite else set the color based on iterations
+                if color != -1:
+                    qp.setPen(QColor.fromHsv(color, 255, 255))
                 else:
                     qp.setPen(Qt.black)
 
-                newW = self.linearMap(w, xMin, xMax, 0, size.width() - 1)
-                newH = self.linearMap(h, yMin, yMax, size.height() - 1, 0)
+                #draw the point on the canvas
                 qp.drawPoint(newW, newH)
+        else:
+            qp.setPen(Qt.gray)
+            qp.fillRect(size.width(), size.height())
+        
+class Point(object):
+    def __init__(self, x=0, y=0, color=0):
+        self.x = x
+        self.y = y
+        self.color = color
+
+#Custom version of the range function that works with float numbers
+def frange(self, start, stop, step):
+    i = start
+    while i < stop:
+        yield i
+        i += step
+
+def linearMap(self, value, low, high, newLow, newHigh):
+    return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
+
+def calculateMandelbrot(guiApp, xMin, xMax, yMin, yMax):
+    size = guiApp.size()
+    maxIteration = 255
+    arrPoints = []  #Clear the array. This get's rid of the old data points
+
+    widthScale = (xMax - xMin) / size.width()
+    heightScale = (yMax - yMin) / size.height()
+
+    for w in frange(xMin, xMax, widthScale):
+        for h in frange(yMin, yMax, heightScale):
+
+            x = 0
+            y = 0
+            iteration = 0
+
+            while (x*x + y*y <= 4) and (iteration < maxIteration):
+                xtemp = (x*x - y*y) + w
+                y = ((2*x) * y) + h
+                x = xtemp
+                iteration += 1
+        
+        if iteration != maxIteration:
+            #qp.setPen(QColor.fromHsv(iteration, 255, 255))
+            pointToAdd = Point(x=w, y=h, color=iteration)
+            arrPoints.append(pointToAdd)
+        else:
+            #qp.setPen(Qt.black)
+            pointToAdd = Point(x=w, y=h, color=-1)
+            arrPoints.append(pointToAdd)
+
+def runMultiprocessing(self, guiApp):
+    numberOfThreads = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(numberOfThreads)
+
+    totalLength = abs(xMin) + abs(xMax)
+    pieceLength = totalLength / numberOfThreads
+
+    for i in range(numberOfThreads):
+        xMinNew = xMin + (pieceLength * i)
+        xMaxNew = xMin + (pieceLength * (i + 1))
+
+        print("Process ", i, " started.")
+        p = multiprocessing.Process(target=calculateMandelbrot, args=(guiApp, xMinNew, xMaxNew, yMin, yMax))
+        p.start()
+    
+    p.join()
+    guiApp.repaint()
+
+def main():
+    app = QApplication([])
+    guiApp = GuiApp()
+    runMultiprocessing()
+    app.exec_()
 
 if __name__ == '__main__':
-    app = QApplication([])
-    ex = Mandelbrot()
-    app.exec_()
+    main()
