@@ -1,6 +1,6 @@
 import sys, random, math, time
-#import array as arrPoints
 import threading
+import multiprocessing
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QColor
@@ -14,13 +14,14 @@ zoomLevel = 4
 arrPoints = []  #At the beginning set the array to be empty
 
 class GuiApp(QWidget):
+    oldWindowSize = 0
 
     def __init__(self):
         super().__init__()
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(50, 50, 1600, 900)    #300, 190
+        self.setGeometry(0, 0, 1000, 1000)    #300, 190
         self.setWindowTitle('Mandelbrot')
         self.show()
         #self.showFullScreen()
@@ -29,6 +30,17 @@ class GuiApp(QWidget):
     def paintEvent(self, event):
         qp = QPainter()
         qp.begin(self)
+        '''
+        size = self.size()
+        windowWidth = size.width()
+        windowHeight = size.height()
+
+        if self.oldWindowSize == 0:
+            self.oldWindowSize = windowWidth * windowHeight
+
+        if self.oldWindowSize != (windowWidth * windowHeight):
+            runMultiprocessing(GuiApp)
+        '''
         #Run the drawMandelbrot program
         self.drawMandelbrot(qp, arrPoints)
         qp.end()
@@ -132,10 +144,49 @@ def frange(start, stop, step):
 def linearMap(value, low, high, newLow, newHigh):
     return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
 
+'''
+def mandelbrotCalculate(xMin, xMax, yMin, yMax, points, widthScale, heightScale):
+        maxIteration = 255
+
+        #print("xMin ", self.xMin)
+        #print("xMax ", self.xMax)
+        #print("yMin ", self.yMin)
+        #print("yMax ", self.yMax)
+        #print(widthScale)
+        #print(heightScale)
+        #print(size)
+
+        for w in frange(xMin, xMax, widthScale):
+            for h in frange(yMin, yMax, heightScale):
+
+                x = 0
+                y = 0
+                iteration = 0
+
+                while (x*x + y*y <= 4) and (iteration < maxIteration):
+                    xtemp = (x*x - y*y) + w
+                    y = ((2*x) * y) + h
+                    x = xtemp
+                    iteration += 1
+            
+                if iteration != maxIteration:
+                    #qp.setPen(QColor.fromHsv(iteration, 255, 255))
+                    pointToAdd = Point(x=w, y=h, color=iteration)
+                    points.append(pointToAdd)
+                    #print("appended colered pixel. Iteration: ", iteration)
+                else:
+                    #qp.setPen(Qt.black)
+                    pointToAdd = Point(x=w, y=h, color=-1)
+                    points.append(pointToAdd)
+                    #print("appended black pixel")
+        
+        #print("mandel calc done ", len(self.points))
+'''
+
 class MandelbrotCalculate(threading.Thread):
-    def __init__(self, size, xMin, xMax, yMin, yMax, points, widthScale, heightScale):
+    def __init__(self, xMin, xMax, yMin, yMax, points, widthScale, heightScale):
         threading.Thread.__init__(self)
-        self.size = size
+        #self.size = size
         self.xMin = xMin
         self.xMax = xMax
         self.yMin = yMin
@@ -143,6 +194,8 @@ class MandelbrotCalculate(threading.Thread):
         self.points = points
         self.widthScale = widthScale
         self.heightScale = heightScale
+
+        self.run()
 
     def run(self):
         #size = guiApp.size()
@@ -172,12 +225,12 @@ class MandelbrotCalculate(threading.Thread):
                 if iteration != maxIteration:
                     #qp.setPen(QColor.fromHsv(iteration, 255, 255))
                     pointToAdd = Point(x=w, y=h, color=iteration)
-                    #self.points.append(pointToAdd)
+                    self.points.append(pointToAdd)
                     #print("appended colered pixel. Iteration: ", iteration)
                 else:
                     #qp.setPen(Qt.black)
                     pointToAdd = Point(x=w, y=h, color=-1)
-                    #self.points.append(pointToAdd)
+                    self.points.append(pointToAdd)
                     #print("appended black pixel")
         
         #print("mandel calc done ", len(self.points))
@@ -187,7 +240,7 @@ def runMultiprocessing(guiApp):
     threadPool = []
     
     #numberOfThreads = threading.cpu_count()
-    numberOfThreads = 1
+    numberOfThreads = 4
     #print(numberOfThreads)
 
     totalLength = abs(xMin) + abs(xMax)
@@ -210,13 +263,15 @@ def runMultiprocessing(guiApp):
         #print("Thread ", i, " started.")
         #print(xMinNew)
         #print(xMaxNew)
-        t = MandelbrotCalculate(guiApp.size(), xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale)
+        #t = MandelbrotCalculate(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale)
+        p = multiprocessing.Process(target=MandelbrotCalculate, args=(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale,))
         #calculateMandelbrot(guiApp.size(), xMinNew, xMaxNew, yMin, yMax,arrPoints)
-        t.start()
-        threadPool.append(t)
+        #t.start()
+        p.start()
+        threadPool.append(p)
     
-    for t in threadPool:
-        t.join()
+    for p in threadPool:
+        p.join()
     
     time2 = time.time()
     print('computation took %0.3f ms' % ((time2-time1)*1000.0))
