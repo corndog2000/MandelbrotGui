@@ -1,5 +1,5 @@
-import sys, random, math, time, os
-import threading
+import sys, random, math, time, os, threading
+
 from multiprocessing import Pool, cpu_count, Queue
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
@@ -11,16 +11,17 @@ xMax = 3
 yMin = -3
 yMax = 3
 zoomLevel = 4
-arrPoints = []  #At the beginning set the array to be empty
 
 class GuiApp(QWidget):
     oldWindowSize = 0
 
-    def __init__(self):
+    def __init__(self, procQueue):
         super().__init__()
         self.initUI()
+        self.procQueue = procQueue
 
     def initUI(self):
+        #This code determines what the base window will look like
         self.setGeometry(1000, 100, 500, 500)    #300, 190
         self.setWindowTitle('Mandelbrot')
         self.show()
@@ -42,7 +43,7 @@ class GuiApp(QWidget):
             runMultiprocessing(GuiApp)
         '''
         #Run the drawMandelbrot program
-        self.drawMandelbrot(qp, arrPoints)
+        self.drawMandelbrot(qp)
         qp.end()
     
     def mousePressEvent(self, event):
@@ -102,14 +103,16 @@ class GuiApp(QWidget):
         #print(x)
         #print(y)
 
-    def drawMandelbrot(self, qp, points):
+    def drawMandelbrot(self, qp):
         size = self.size()
+        procQueue = self.procQueue()
         
-        print("draw mandelbrot ", len(points))
-        if len(points) > 0:
+        print("draw mandelbrot ", procQueue.qsize())
+        if procQueue.qsize() > 0:
             
-            for Point in points:
-                print(Point)
+            while procQueue.empty() is False:
+                Point = procQueue.get()
+                #print(Point)
                 newW = linearMap(Point.x, xMin, xMax, 0, size.width() - 1)
                 newH = linearMap(Point.y, yMin, yMax, size.height() - 1, 0)
 
@@ -144,8 +147,7 @@ def frange(start, stop, step):
 def linearMap(value, low, high, newLow, newHigh):
     return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
 
-
-def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, procQueue):
+def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, i):
         maxIteration = 255
 
         #print("xMin ", self.xMin)
@@ -172,21 +174,15 @@ def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, procQue
                 if iteration != maxIteration:
                     #qp.setPen(QColor.fromHsv(iteration, 255, 255))
                     pointToAdd = Point(x=w, y=h, color=iteration)
-                    
-                    points = procQueue.get_nowait(arrPoints)
-                    points.append(pointToAdd)
-                    procQueue.put_nowait(arrPoints)
-                    print("appended colered pixel. Iteration: ", iteration)
+                    procQueue.put_nowait(pointToAdd)
+                    #print("appended colered pixel. Iteration: ", iteration)
                 else:
                     #qp.setPen(Qt.black)
-                    pointToAdd = Point(x=w, y=h, color=-1)
-                    
-                    points = procQueue.get_nowait(arrPoints)
-                    points.append(pointToAdd)
-                    procQueue.put_nowait(arrPoints)
-                    print("appended black pixel")
+                    pointToAdd = Point(x=w, y=h, color=-1)                
+                    procQueue.put_nowait(pointToAdd)
+                    #print("appended black pixel")
         
-        #print("mandel calc done ", len(self.points))
+        print("inside process ", i, " ", procQueue.qsize())
 
 '''
 class MandelbrotCalculate(threading.Thread):
@@ -246,13 +242,11 @@ def runMultiprocessing(guiApp):
     #threadPool = []
     
     #numberOfThreads = os.cpu_count()
-    numberOfThreads = 1
+    numberOfThreads = 4
     print("Running with ", numberOfThreads, " number of threads.")
 
     #Create a pool of numberOfThreads many workers
     pool = Pool(processes=numberOfThreads)
-    procQueue = Queue(1)
-    procQueue.put_nowait(arrPoints)
 
     totalLength = abs(xMin) + abs(xMax)
     pieceLength = totalLength / numberOfThreads
@@ -276,8 +270,7 @@ def runMultiprocessing(guiApp):
         #print(xMaxNew)
 
         #add the mandelbrotCalculate function to the pool so it is run by the workers
-        pool.apply_async(mandelbrotCalculate, (xMinNew, xMaxNew, yMin, yMax, widthScale, heightScale, procQueue))
-
+        pool.apply_async(mandelbrotCalculate, (xMinNew, xMaxNew, yMin, yMax, widthScale, heightScale, i, procQueue))
         #t = MandelbrotCalculate(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale)
         #p = multiprocessing.Process(target=mandelbrotCalculate, args=(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale))
         #calculateMandelbrot(guiApp.size(), xMinNew, xMaxNew, yMin, yMax,arrPoints)
@@ -295,13 +288,11 @@ def runMultiprocessing(guiApp):
     print('computation took %0.3f ms' % ((time2-time1)*1000.0))
 
     guiApp.repaint()
-    #print("join done ", len(arrPoints))
-
-def main():
-    app = QApplication([])
-    guiApp = GuiApp()
-    runMultiprocessing(guiApp)
-    app.exec_()
+    print("outside process ", procQueue.qsize())
 
 if __name__ == '__main__':
-    main()
+    procQueue = Queue()
+    app = QApplication([])
+    guiApp = GuiApp(procQueue)
+    runMultiprocessing(guiApp)
+    app.exec_()
