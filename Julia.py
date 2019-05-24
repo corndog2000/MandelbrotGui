@@ -18,8 +18,8 @@ class Mandelbrot(QWidget):
 
     def initUI(self):
         self.setGeometry(300, 300, 700, 700)    #300, 190
-        self.setWindowTitle('Mandelbrot')
-        self.show()
+        self.setWindowTitle('Julia')
+        self.showFullScreen()
 
     #Custom version of the range function that works with float numbers
     def frange(self, start, stop, step):
@@ -77,6 +77,7 @@ class Mandelbrot(QWidget):
 
     def drawMandelbrot(self, qp, xMin, xMax, yMin, yMax):
         #Variables
+        print("Started Calculations")
         size = self.size()
         maxIteration = 255
         C = -0.8
@@ -99,7 +100,7 @@ class Mandelbrot(QWidget):
                     R = ((x * x) - (y * y)) + C
                     I = (2 * (x * y)) + D
                     
-                    if (R * R > 1000):
+                    if (R * R > 500):
                         break
                     else:
                         x = R
