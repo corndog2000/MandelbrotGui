@@ -13,14 +13,14 @@ xMax = 3
 yMin = -3
 yMax = 3
 zoomLevel = 4
+points = []
 
 class GuiApp(QWidget):
     oldWindowSize = 0
 
-    def __init__(self, q):
+    def __init__(self):
         super().__init__()
         self.initUI()
-        self.q = q
 
     def initUI(self):
         #This code determines what the base window will look like
@@ -45,7 +45,7 @@ class GuiApp(QWidget):
             runMultiprocessing(GuiApp)
         '''
         #Run the drawMandelbrot program
-        self.drawMandelbrot(qp, self.q)
+        self.drawMandelbrot(qp, points)
         qp.end()
     
     def mousePressEvent(self, event):
@@ -105,15 +105,12 @@ class GuiApp(QWidget):
         #print(x)
         #print(y)
 
-    def drawMandelbrot(self, qp, q):
+    def drawMandelbrot(self, qp, points):
         size = self.size()
         
-        print("draw mandelbrot ", q.qsize())
-        if q.qsize() > 0:
+        if len(points) > 0:
             
-            while not q.empty():
-                Point = q.get()
-                print(Point)
+            for Point in points:
                 newW = linearMap(Point.x, xMin, xMax, 0, size.width() - 1)
                 newH = linearMap(Point.y, yMin, yMax, size.height() - 1, 0)
 
@@ -148,10 +145,8 @@ def frange(start, stop, step):
 def linearMap(value, low, high, newLow, newHigh):
     return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
 
-def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, i, q):
+def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, i):
         maxIteration = 255
-        #print("##############################################################################################")
-
         #print("xMin ", self.xMin)
         #print("xMax ", self.xMax)
         #print("yMin ", self.yMin)
@@ -175,15 +170,12 @@ def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, i, q):
             
                 if iteration != maxIteration:
                     pointToAdd = Point(x=w, y=h, color=iteration)
-                    q.put_nowait(pointToAdd)
                     #print("appended colered pixel. Iteration: ", iteration)
                 else:
                     pointToAdd = Point(x=w, y=h, color=-1)                
-                    q.put_nowait(pointToAdd)
                     #print("appended black pixel")
         
         print("INSIDE process ", i, " finished calculating")
-        print("inside process ", i, " ", q.qsize())
 
 '''
 class MandelbrotCalculate(threading.Thread):
@@ -271,7 +263,7 @@ def runMultiprocessing(guiApp, q):
         #print(xMaxNew)
 
         #add the mandelbrotCalculate function to the pool so it is run by the workers
-        pool.apply_async(mandelbrotCalculate, (xMinNew, xMaxNew, yMin, yMax, widthScale, heightScale, i, q))
+        pool.apply_async(mandelbrotCalculate, (xMinNew, xMaxNew, yMin, yMax, widthScale, heightScale, i))
         #t = MandelbrotCalculate(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale)
         #p = multiprocessing.Process(target=mandelbrotCalculate, args=(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale))
         #calculateMandelbrot(guiApp.size(), xMinNew, xMaxNew, yMin, yMax,arrPoints)
@@ -289,11 +281,9 @@ def runMultiprocessing(guiApp, q):
     print('computation took %0.3f ms' % ((time2-time1)*1000.0))
 
     guiApp.repaint()
-    print("outside process ", q.qsize())
 
 if __name__ == '__main__':
-    q = multiprocessing.Queue()
     app = QApplication([])
-    guiApp = GuiApp(q)
-    runMultiprocessing(guiApp, q)
+    guiApp = GuiApp()
+    runMultiprocessing(guiApp)
     app.exec_()
