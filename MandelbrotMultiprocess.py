@@ -45,7 +45,7 @@ class GuiApp(QWidget):
             runMultiprocessing(GuiApp)
         '''
         #Run the drawMandelbrot program
-        self.drawMandelbrot(qp, points)
+        self.drawMandelbrot(qp)
         qp.end()
     
     def mousePressEvent(self, event):
@@ -105,9 +105,11 @@ class GuiApp(QWidget):
         #print(x)
         #print(y)
 
-    def drawMandelbrot(self, qp, points):
+    def drawMandelbrot(self, qp):
         size = self.size()
         
+        print("drawMandelbrot is trying to draw based on an array with ", len(points), " data points.")
+
         if len(points) > 0:
             
             for Point in points:
@@ -170,12 +172,14 @@ def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, i):
             
                 if iteration != maxIteration:
                     pointToAdd = Point(x=w, y=h, color=iteration)
+                    points.append(pointToAdd)
                     #print("appended colered pixel. Iteration: ", iteration)
                 else:
                     pointToAdd = Point(x=w, y=h, color=-1)                
+                    points.append(pointToAdd)
                     #print("appended black pixel")
         
-        print("INSIDE process ", i, " finished calculating")
+        print("INSIDE process ", i, " finished calculating and created an array with ", len(points), " points")
 
 '''
 class MandelbrotCalculate(threading.Thread):
@@ -230,12 +234,12 @@ class MandelbrotCalculate(threading.Thread):
         #print("mandel calc done ", len(self.points))
 '''
 
-def runMultiprocessing(guiApp, q):
+def runMultiprocessing(guiApp):
     size = guiApp.size()
     #threadPool = []
     
     #numberOfThreads = os.cpu_count()
-    numberOfThreads = 1
+    numberOfThreads = 12
     print("Running with ", numberOfThreads, " number of threads.")
 
     #Create a pool of numberOfThreads many workers
@@ -273,6 +277,8 @@ def runMultiprocessing(guiApp, q):
     
     pool.close()
     pool.join()
+
+    print(len(points))
 
     #for p in threadPool:
     #    p.join()
