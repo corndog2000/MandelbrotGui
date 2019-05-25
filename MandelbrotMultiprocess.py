@@ -1,12 +1,9 @@
-import sys, random, math, time, os, threading, logging, multiprocessing
+import sys, random, math, time, os, threading
 
-#from multiprocessing import Pool, cpu_count, Queue
+from multiprocessing import Pool, cpu_count
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QColor
-
-#logger = multiprocessing.log_to_stderr()
-#logger.setLevel(multiprocessing.SUBDEBUG)
 
 xMin = -3
 xMax = 3
@@ -24,7 +21,7 @@ class GuiApp(QWidget):
 
     def initUI(self):
         #This code determines what the base window will look like
-        self.setGeometry(1000, 100, 500, 500)    #300, 190
+        self.setGeometry(0, 0, 1000, 1000)    #300, 190
         self.setWindowTitle('Mandelbrot')
         self.show()
         #self.showFullScreen()
@@ -93,7 +90,7 @@ class GuiApp(QWidget):
         heightScale = (yMax - yMin) / size.height()
 
 
-        self.repaint()
+        runMultiprocessing(self)
         #print("Done zooming in.")
         #print("New xMin: ", xMin)
         #print("New xMax: ", xMax)
@@ -147,8 +144,13 @@ def frange(start, stop, step):
 def linearMap(value, low, high, newLow, newHigh):
     return newLow + ((value - low) / (high - low)) * (newHigh - newLow)
 
+def pointsReady(result):
+    global points
+    points += result
+
 def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, i):
         maxIteration = 255
+        internalPoints = []
         #print("xMin ", self.xMin)
         #print("xMax ", self.xMax)
         #print("yMin ", self.yMin)
@@ -172,14 +174,15 @@ def mandelbrotCalculate(xMin, xMax, yMin, yMax, widthScale, heightScale, i):
             
                 if iteration != maxIteration:
                     pointToAdd = Point(x=w, y=h, color=iteration)
-                    points.append(pointToAdd)
+                    internalPoints.append(pointToAdd)
                     #print("appended colered pixel. Iteration: ", iteration)
                 else:
                     pointToAdd = Point(x=w, y=h, color=-1)                
-                    points.append(pointToAdd)
+                    internalPoints.append(pointToAdd)
                     #print("appended black pixel")
         
-        print("INSIDE process ", i, " finished calculating and created an array with ", len(points), " points")
+        print("INSIDE process ", i, " finished calculating and created an array with ", len(internalPoints), " points")
+        return internalPoints
 
 '''
 class MandelbrotCalculate(threading.Thread):
@@ -236,14 +239,16 @@ class MandelbrotCalculate(threading.Thread):
 
 def runMultiprocessing(guiApp):
     size = guiApp.size()
+    global points
+    points = []
     #threadPool = []
     
     #numberOfThreads = os.cpu_count()
-    numberOfThreads = 12
+    numberOfThreads = 8
     print("Running with ", numberOfThreads, " number of threads.")
 
     #Create a pool of numberOfThreads many workers
-    pool = multiprocessing.Pool(processes=numberOfThreads)
+    pool = Pool(processes=numberOfThreads)
 
     totalLength = abs(xMin) + abs(xMax)
     pieceLength = totalLength / numberOfThreads
@@ -254,6 +259,8 @@ def runMultiprocessing(guiApp):
     heightScale = (yMax - yMin) / size.height()
 
     time1 = time.time()
+
+    multipleResults = []
 
     for i in range(numberOfThreads):
         xMinNew = xMin + (pieceLength * i)
@@ -267,7 +274,8 @@ def runMultiprocessing(guiApp):
         #print(xMaxNew)
 
         #add the mandelbrotCalculate function to the pool so it is run by the workers
-        pool.apply_async(mandelbrotCalculate, (xMinNew, xMaxNew, yMin, yMax, widthScale, heightScale, i))
+        multipleResults.append(pool.apply_async(mandelbrotCalculate, args = (xMinNew, xMaxNew, yMin, yMax, widthScale, heightScale, i), callback = pointsReady))
+        
         #t = MandelbrotCalculate(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale)
         #p = multiprocessing.Process(target=mandelbrotCalculate, args=(xMin, xMax, yMinNew, yMaxNew, arrPoints, widthScale, heightScale))
         #calculateMandelbrot(guiApp.size(), xMinNew, xMaxNew, yMin, yMax,arrPoints)
@@ -275,10 +283,15 @@ def runMultiprocessing(guiApp):
         #p.start()
         #threadPool.append(p)
     
+    print("Waiting for results")
+
+    #for result in multipleResults:
+    #    points = points + result.get()
+
     pool.close()
     pool.join()
 
-    print(len(points))
+    #print(len(points))
 
     #for p in threadPool:
     #    p.join()

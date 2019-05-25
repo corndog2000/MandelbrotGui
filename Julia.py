@@ -4,10 +4,10 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QColor
 from multiprocessing import Process
 
-xMin = -1000
-xMax = 1000
-yMin = -1000
-yMax = 1000
+xMin = -500
+xMax = 500
+yMin = -500
+yMax = 500
 zoomLevel = 4
 
 class Mandelbrot(QWidget):
@@ -19,7 +19,7 @@ class Mandelbrot(QWidget):
     def initUI(self):
         self.setGeometry(300, 300, 700, 700)    #300, 190
         self.setWindowTitle('Julia')
-        self.showFullScreen()
+        self.show()
 
     #Custom version of the range function that works with float numbers
     def frange(self, start, stop, step):

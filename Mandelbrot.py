@@ -19,7 +19,7 @@ class Mandelbrot(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(300, 300, 700, 700)    #300, 190
+        self.setGeometry(300, 300, 400, 400)    #300, 190
         self.setWindowTitle('Mandelbrot')
         self.show()
 
